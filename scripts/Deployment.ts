@@ -1,4 +1,4 @@
-import { ethers } from "ethers";
+import { ethers } from "hardhat";
 import * as dotenv from 'dotenv';
 import { Ballot__factory } from "../typechain-types";
 dotenv.config();
@@ -10,38 +10,30 @@ const convertStringArrayToBytes32Array = (stringArray: string[]) => {
 }
 
 async function main() {
-    const provider = new ethers.providers.AlchemyProvider('goerli', process.env.ALCHEMY_API_KEY);
-    const privateKey = process.env.PRIVATE_WALLET_KEY;
+    //--WALLET + CONTRACT SETUP
+    const provider = new ethers.providers.InfuraProvider('goerli', process.env.INFURA_API_KEY);
+    const privateKey = process.env.PRIVATE_KEY;
     if (!privateKey || privateKey.length <= 0) {
         throw new Error("No private key provided");
     }
-
-    const wallet = new ethers.Wallet(privateKey); // By passing the key we are using our actual metamask wallet
+    const wallet = new ethers.Wallet(privateKey); // using our actual metamask wallet
     const signer = wallet.connect(provider);
-    console.log("🚀 ~ file: Deployment.ts:14 ~ main ~ privateKey:", privateKey)
-    console.log( {provider} );
-
-    const lastBlock = await provider.getBlock('latest');
-    console.log({lastBlock});
-
-
-    const balance = await signer.getBalance();
-    console.log('The balance of the signer is: ', balance.toString());
- 
+    
+    //--CALL CONTRACT FUNCTION
     const proposals = PROPOSALS;
     if (proposals.length <= 0) {
         throw new Error("No proposals provided");
     }
-
+    
     const ballotContractFactory = new Ballot__factory(signer);
     const ballotContract = await ballotContractFactory.deploy(
         convertStringArrayToBytes32Array(proposals)
     );
-    const txReceipt = await ballotContract.deployTransaction.wait(); // similar to ballotContract.deployed() in truffle
+    
+    const txReceipt = await ballotContract.deployTransaction.wait();
 
     console.log('The ballot contract was deployed at address: ', ballotContract.address);
     console.log('The transaction hash is: ', txReceipt.transactionHash);
-  // TODO
 }
 
 main().catch((error) => {
