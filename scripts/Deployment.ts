@@ -1,47 +1,56 @@
 import { ethers } from "ethers";
-import * as dotenv from 'dotenv';
+import * as dotenv from "dotenv";
 import { Ballot__factory } from "../typechain-types";
 dotenv.config();
 
 const PROPOSALS = ["Proposal 1", "Proposal 2", "Proposal 3"];
 
-const convertStringArrayToBytes32Array = (stringArray: string[]) => {
-    return stringArray.map(prop => ethers.utils.formatBytes32String(prop));
+function convertStringArrayToBytes32(array: string[]) {
+  const bytes32Array = [];
+  for (let index = 0; index < array.length; index++) {
+    bytes32Array.push(ethers.utils.formatBytes32String(array[index]));
+  }
+  return bytes32Array;
 }
 
 async function main() {
-    const provider = new ethers.providers.AlchemyProvider('goerli', process.env.ALCHEMY_API_KEY);
-    const privateKey = process.env.PRIVATE_WALLET_KEY;
-    if (!privateKey || privateKey.length <= 0) {
-        throw new Error("No private key provided");
-    }
+  const provider = new ethers.providers.InfuraProvider(
+    "goerli",
+    process.env.INFURA_API_KEY
+  );
 
-    const wallet = new ethers.Wallet(privateKey); // By passing the key we are using our actual metamask wallet
+  const privateKey = process.env.PRIVATE_KEY;
+  if (!privateKey || privateKey.length <= 0)
+    throw new Error("Missing environment: PRIVATE_KEY");
+
+    const wallet = new ethers.Wallet(privateKey);
     const signer = wallet.connect(provider);
-    console.log("🚀 ~ file: Deployment.ts:14 ~ main ~ privateKey:", privateKey)
-    console.log( {provider} );
-
-    const lastBlock = await provider.getBlock('latest');
-    console.log({lastBlock});
-
-
     const balance = await signer.getBalance();
-    console.log('The balance of the signer is: ', balance.toString());
- 
-    const proposals = PROPOSALS;
-    if (proposals.length <= 0) {
-        throw new Error("No proposals provided");
-    }
+  console.log(`The account ${signer.address} has a balance of ${balance}`);
 
-    const ballotContractFactory = new Ballot__factory(signer);
-    const ballotContract = await ballotContractFactory.deploy(
-        convertStringArrayToBytes32Array(proposals)
-    );
-    const txReceipt = await ballotContract.deployTransaction.wait(); // similar to ballotContract.deployed() in truffle
+  const args = process.argv;
+  const proposals = args.slice(2);
+  if (proposals.length <= 0) throw new Error("missing argument: Proposals");
 
-    console.log('The ballot contract was deployed at address: ', ballotContract.address);
-    console.log('The transaction hash is: ', txReceipt.transactionHash);
-  // TODO
+  console.log("Deploying Contracts");
+  const ballotFactory = new Ballot__factory(signer);
+  const ballotContract = await ballotFactory.deploy(
+    convertStringArrayToBytes32(proposals)
+  );
+  console.log("Awaiting for confirmations...");
+  await ballotContract.deployed();
+  const txReceipt = await ballotContract.deployTransaction.wait();
+  console.log(
+    `the ballot is deployed at address ${ballotContract.address} in the block number ${txReceipt.blockNumber}`
+  );
+
+  //   console.log({ proposals });
+  //   console.log("Deploying Ballot contract");
+  //   console.log("Proposals: ");
+  //   PROPOSALS.forEach((element, index) => {
+  //     console.log(`Proposal N. ${index + 1}: ${element}`);
+  //   });
+  //   // TODO
 }
 
 main().catch((error) => {
